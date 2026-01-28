@@ -1,0 +1,82 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GEO-TERMINAL | Planetary Grid</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #000000;
+      color: #ffffff;
+      font-family: 'Inter', 'Noto Sans SC', sans-serif;
+      overflow: hidden;
+      text-transform: uppercase;
+    }
+    input[type="range"] {
+      -webkit-appearance: none;
+      background: #333;
+      height: 1px;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      height: 12px;
+      width: 12px;
+      background: #ffffff;
+      border-radius: 50%;
+      cursor: pointer;
+    }
+    .terminal-scrollbar::-webkit-scrollbar {
+      width: 2px;
+    }
+    .terminal-scrollbar::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .terminal-scrollbar::-webkit-scrollbar-thumb {
+      background: #333;
+    }
+    
+    /* 修复下拉框选项在部分浏览器中白底白字的问题 */
+    select {
+      background-color: #1a1a1a !important;
+      color: #ffffff !important;
+    }
+    option {
+      background-color: #1a1a1a !important;
+      color: #ffffff !important;
+    }
+    /* 移除 iOS 默认样式并添加自定义箭头 */
+    select {
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      appearance: none;
+      background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+      background-repeat: no-repeat;
+      background-position: right 0.5rem center;
+      background-size: 1em;
+      padding-right: 2rem !important;
+    }
+  </style>
+
+<link rel="stylesheet" href="/index.css">
+<script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@^19.2.3",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "lucide-react": "https://esm.sh/lucide-react@^0.562.0",
+    "react-globe.gl": "https://esm.sh/react-globe.gl@^2.37.0"
+  }
+}
+</script>
+  <script type="module" crossorigin src="/Earthcon/assets/index-Bo4WAw_p.js"></script>
+</head>
+<body>
+  <div id="root"></div>
+</body>
+</html>
