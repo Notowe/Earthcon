@@ -3,10 +3,12 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { GlobeView } from './components/GlobeView';
 import { GlobeState, FillMode, ArcDistribution, SurfaceStyle, SavedTheme, PostProcessingConfig } from './types';
-import { Activity, Languages, Info, Sparkles, ChevronUp, ChevronDown, Check, Star, Camera, Eye, EyeOff, SlidersHorizontal, Settings2, Power, Image as ImageIcon, Link as LinkIcon, MousePointer2, Target, Lock, Unlock } from 'lucide-react';
+import { Activity, Languages, Info, Sparkles, ChevronUp, ChevronDown, Check, Star, Camera, Eye, EyeOff, SlidersHorizontal, Settings2, Power, Image as ImageIcon, Link as LinkIcon, MousePointer2, Target, Lock, Unlock, X as CloseIcon } from 'lucide-react';
 import { translations } from './i18n';
 import { PRESET_THEMES } from './constants';
 import * as htmlToImage from 'html-to-image';
+
+const APP_VERSION = "1.1";
 
 const DEFAULT_POST_PROCESSING: PostProcessingConfig = {
   enabled: false, 
@@ -90,7 +92,7 @@ const DEFAULT_STATE: GlobeState = {
 const CapsuleSwitch: React.FC<{ checked: boolean; onChange: () => void }> = ({ checked, onChange }) => (
   <div 
     onClick={(e) => { e.stopPropagation(); onChange(); }}
-    className={`w-[48px] h-[24px] rounded-full border border-white/10 flex items-center p-[2px] cursor-pointer transition-all duration-300 relative ${checked ? 'bg-white/20' : 'bg-black/40'}`}
+    className={`w-[48px] h-[24px] rounded-full border border-white/20 flex items-center p-[2px] cursor-pointer transition-all duration-300 relative ${checked ? 'bg-white/30' : 'bg-black/50'}`}
   >
     <div className={`w-[18px] h-[18px] rounded-full shadow-lg transition-transform duration-300 ${checked ? 'translate-x-[24px] bg-white' : 'translate-x-0 bg-white/40'}`} />
   </div>
@@ -104,6 +106,7 @@ const App: React.FC = () => {
   const [showPPMenu, setShowPPMenu] = useState(false);
   const [uiVisible, setUiVisible] = useState(true);
   const [isCapturing, setIsCapturing] = useState(false);
+  const [showUpdateNotice, setShowUpdateNotice] = useState(false);
   
   const [isDofExpanded, setIsDofExpanded] = useState(false);
   const [isMosaicExpanded, setIsMosaicExpanded] = useState(false);
@@ -122,6 +125,12 @@ const App: React.FC = () => {
   const isDraggingGlobal = useRef(false);
 
   useEffect(() => {
+    // Check if user has seen this version
+    const lastSeenVersion = localStorage.getItem('last_seen_version');
+    if (lastSeenVersion !== APP_VERSION) {
+      setShowUpdateNotice(true);
+    }
+
     const savedDefault = localStorage.getItem('default_theme');
     if (savedDefault) {
       try {
@@ -146,6 +155,11 @@ const App: React.FC = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  const closeUpdateNotice = () => {
+    localStorage.setItem('last_seen_version', APP_VERSION);
+    setShowUpdateNotice(false);
+  };
+
   const t = useCallback((key: string) => translations[state.language][key] || key, [state.language]);
 
   const handleUpdate = useCallback((updates: Partial<GlobeState>) => {
@@ -161,14 +175,12 @@ const App: React.FC = () => {
     
     setIsCapturing(true);
     try {
-      // Small delay to let current frame settle
       await new Promise(resolve => setTimeout(resolve, 50));
-      
       const blob = await htmlToImage.toBlob(globeContainerRef.current, {
-        skipFonts: true, // IMPORTANT: Earth view has no text, skipping fonts speeds up capture tremendously
-        pixelRatio: window.devicePixelRatio || 1, // Use current screen density
+        skipFonts: true,
+        pixelRatio: window.devicePixelRatio || 1,
         backgroundColor: '#000000',
-        cacheBust: false, // Use browser cache for better performance
+        cacheBust: false,
       });
       
       if (blob) {
@@ -177,8 +189,6 @@ const App: React.FC = () => {
         link.download = `planetary-capture-${Date.now()}.png`;
         link.href = url;
         link.click();
-        
-        // Cleanup memory
         setTimeout(() => URL.revokeObjectURL(url), 100);
       }
     } catch (error) {
@@ -264,11 +274,10 @@ const App: React.FC = () => {
 
     const labelWidthClass = isZh ? 'w-16' : 'w-20';
     const labelFontSizeClass = isZh ? (isSub ? 'text-[11px]' : 'text-[13px]') : (isSub ? 'text-[9px]' : 'text-[11px]');
-    const textTransformClass = isZh ? '' : ''; 
 
     return (
       <div className={`flex items-center gap-2.5 ${isSub ? 'min-h-[2rem]' : 'min-h-[2.75rem]'} group/row select-none transition-opacity ${!isEnabled ? 'opacity-30 pointer-events-none' : ''}`}>
-        <span className={`${labelFontSizeClass} font-black text-white/50 ${labelWidthClass} flex-shrink-0 tracking-tighter leading-[1.1] transition-all break-words ${textTransformClass}`}>
+        <span className={`${labelFontSizeClass} font-black text-white/50 ${labelWidthClass} flex-shrink-0 tracking-tighter leading-[1.1] transition-all break-words uppercase`}>
             {label}
         </span>
         
@@ -293,7 +302,7 @@ const App: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
-            <div className={`${isSub ? 'w-14 h-7' : 'w-16 h-8'} bg-white/5 rounded-lg flex items-center justify-center border border-transparent group-hover/row:border-white/15 transition-all ${isEffectOff ? 'opacity-40' : ''}`}>
+            <div className={`${isSub ? 'w-14 h-7' : 'w-16 h-8'} bg-white/5 rounded-lg flex items-center justify-center border border-white/10 group-hover/row:border-white/20 transition-all ${isEffectOff ? 'opacity-40' : ''}`}>
             {isEditing ? (
                 <input 
                 autoFocus
@@ -332,12 +341,12 @@ const App: React.FC = () => {
       <div className="z-10 flex h-full w-full pointer-events-none relative">
         {uiVisible && (
           <div className="absolute top-8 left-8 flex flex-col gap-2">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 bg-black/40 backdrop-blur-xl border border-white/15 p-4 px-6 rounded-3xl shadow-2xl pointer-events-auto ring-1 ring-white/10">
                <Activity className="w-6 h-6 text-white animate-pulse" />
-               <h1 className="text-3xl font-bold tracking-[0.1em] text-white shadow-black drop-shadow-md uppercase">{t('terminalTitle')}</h1>
+               <h1 className="text-3xl font-bold tracking-[0.1em] text-white uppercase">{t('terminalTitle')}</h1>
                <button 
                  onClick={toggleLanguage}
-                 className="ml-4 p-1.5 px-3 border border-white/20 hover:bg-white hover:text-black transition-all text-xs font-bold pointer-events-auto flex items-center gap-2 bg-black/50 backdrop-blur-sm"
+                 className="ml-4 p-1.5 px-3 border border-white/20 hover:bg-white hover:text-black transition-all text-xs font-bold flex items-center gap-2 bg-white/10 rounded-lg"
                >
                  <Languages className="w-4 h-4" />
                  {state.language.toUpperCase()}
@@ -353,7 +362,7 @@ const App: React.FC = () => {
             {uiVisible && (
               <div className="relative" ref={themeMenuRef}>
                  {showThemeMenu && (
-                    <div className="absolute bottom-full right-0 mb-3 bg-black/90 backdrop-blur-3xl border border-white/20 p-2 rounded-2xl shadow-2xl w-64 animate-in fade-in slide-in-from-bottom-4 duration-300 pointer-events-auto overflow-hidden">
+                    <div className="absolute bottom-full right-0 mb-3 bg-black/40 backdrop-blur-3xl border border-white/15 p-2 rounded-2xl shadow-2xl w-64 animate-in fade-in slide-in-from-bottom-4 duration-300 pointer-events-auto overflow-hidden ring-1 ring-white/10">
                        <div className="flex items-center gap-2 px-3 py-2 mb-2 border-b border-white/10">
                           <Star className="w-3.5 h-3.5 text-yellow-500" />
                           <span className="text-[10px] font-bold text-white/40 tracking-widest uppercase">{t('presetThemes')}</span>
@@ -382,7 +391,7 @@ const App: React.FC = () => {
                  )}
                  <div 
                     onClick={() => setShowThemeMenu(!showThemeMenu)}
-                    className="flex items-center gap-4 bg-black/60 backdrop-blur-xl border border-white/10 p-2 pl-4 pr-5 rounded-2xl shadow-2xl hover:bg-black/80 hover:border-white/30 transition-all cursor-pointer group relative overflow-hidden h-12 ring-1 ring-white/5"
+                    className="flex items-center gap-4 bg-black/40 backdrop-blur-xl border border-white/15 p-2 pl-4 pr-5 rounded-2xl shadow-2xl hover:bg-black/60 hover:border-white/30 transition-all cursor-pointer group relative overflow-hidden h-12 ring-1 ring-white/10"
                  >
                     <div className="flex flex-col">
                        <span className="text-[10px] text-white/30 font-bold tracking-widest uppercase flex items-center gap-1.5 leading-none mb-1">
@@ -397,13 +406,13 @@ const App: React.FC = () => {
               </div>
             )}
 
-            <div className="flex bg-black/60 backdrop-blur-xl border border-white/10 p-1.5 rounded-2xl shadow-2xl items-center ring-1 ring-white/5 h-12">
+            <div className="flex bg-black/40 backdrop-blur-xl border border-white/15 p-1.5 rounded-2xl shadow-2xl items-center ring-1 ring-white/10 h-12">
                <button 
                 onClick={() => setShowPPMenu(!showPPMenu)}
                 className={`p-2.5 text-white/60 hover:text-white hover:bg-white/10 rounded-xl transition-all ${!uiVisible ? 'hidden' : ''} ${showPPMenu ? 'bg-white/20 text-white' : ''}`}
                 title={t('postProcessing')}
                >
-                  <SlidersHorizontal className="w-5 h-5" />
+                  <Sparkles className="w-5 h-5" />
                </button>
                <button 
                 onClick={captureScreenshot}
@@ -415,10 +424,17 @@ const App: React.FC = () => {
                </button>
                <button 
                 onClick={() => setUiVisible(!uiVisible)}
-                className="p-2.5 text-white/60 hover:text-white hover:bg-white/10 rounded-xl transition-all"
+                className={`p-2.5 text-white/60 hover:text-white hover:bg-white/10 rounded-xl transition-all`}
                 title={uiVisible ? "Hide UI" : "Show UI"}
                >
                   {uiVisible ? <Eye className="w-5 h-5" /> : <EyeOff className="w-5 h-5" />}
+               </button>
+               <button 
+                onClick={() => setShowUpdateNotice(true)}
+                className={`p-2.5 text-white/60 hover:text-white hover:bg-white/10 rounded-xl transition-all ${!uiVisible ? 'hidden' : ''}`}
+                title={t('updateTitle')}
+               >
+                  <Info className="w-5 h-5" />
                </button>
             </div>
         </div>
@@ -426,12 +442,12 @@ const App: React.FC = () => {
         {showPPMenu && uiVisible && (
           <div 
             ref={ppMenuRef}
-            className="absolute bottom-24 right-[340px] w-[340px] bg-[#0c0c0c]/95 backdrop-blur-3xl border border-white/15 p-7 rounded-[2.5rem] shadow-[0_40px_100px_-20px_rgba(0,0,0,0.9)] pointer-events-auto animate-in fade-in zoom-in-95 duration-200 ring-1 ring-white/10 overflow-hidden"
+            className="absolute bottom-24 right-[340px] w-[340px] bg-black/40 backdrop-blur-3xl border border-white/15 p-7 rounded-[2.5rem] shadow-[0_40px_100px_-20px_rgba(0,0,0,0.9)] pointer-events-auto animate-in fade-in zoom-in-95 duration-200 ring-1 ring-white/15 overflow-hidden"
           >
             <div className="flex items-center justify-between mb-8">
               <div className="flex items-center gap-3.5">
-                <div className="p-2.5 bg-white/10 rounded-2xl">
-                  <SlidersHorizontal className="w-5 h-5 text-white" />
+                <div className="p-2.5 bg-white/10 rounded-2xl shadow-inner border border-white/5">
+                  <Sparkles className="w-5 h-5 text-white" />
                 </div>
                 <span className="text-sm font-bold tracking-widest text-white uppercase">{t('postProcessing')}</span>
               </div>
@@ -457,7 +473,7 @@ const App: React.FC = () => {
                         <div className="flex items-center gap-1">
                             <button 
                                 onClick={() => updatePP({ dofEnabled: !state.postProcessing?.dofEnabled })}
-                                className={`p-1.5 rounded-lg transition-all ${state.postProcessing?.dofEnabled ? 'bg-white/10 text-white' : 'bg-white/5 text-white/30 hover:text-white'}`}
+                                className={`p-1.5 rounded-lg transition-all ${state.postProcessing?.dofEnabled ? 'bg-white/20 text-white shadow-inner' : 'bg-white/5 text-white/30 hover:text-white'}`}
                                 title="Toggle DoF"
                             >
                                 {state.postProcessing?.dofEnabled ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4 text-white/30" />}
@@ -474,7 +490,7 @@ const App: React.FC = () => {
                   />
                   
                   {isDofExpanded && (
-                      <div className="pl-6 border-l border-white/10 mt-1 mb-4 space-y-0.5 animate-in slide-in-from-top-2 duration-300">
+                      <div className="pl-6 border-l border-white/15 mt-1 mb-4 space-y-0.5 animate-in slide-in-from-top-2 duration-300">
                             <PPSlider 
                                 label={t('ppBlur')} 
                                 value={state.postProcessing?.blur || 0} 
@@ -522,7 +538,7 @@ const App: React.FC = () => {
                         <div className="flex items-center gap-1">
                             <button 
                                 onClick={() => updatePP({ mosaicEnabled: !state.postProcessing?.mosaicEnabled })}
-                                className={`p-1.5 rounded-lg transition-all ${state.postProcessing?.mosaicEnabled ? 'bg-white/10 text-white' : 'bg-white/5 text-white/30 hover:text-white'}`}
+                                className={`p-1.5 rounded-lg transition-all ${state.postProcessing?.mosaicEnabled ? 'bg-white/20 text-white' : 'bg-white/5 text-white/30 hover:text-white'}`}
                                 title="Toggle Mosaic"
                             >
                                 {state.postProcessing?.mosaicEnabled ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4 text-white/30" />}
@@ -539,7 +555,7 @@ const App: React.FC = () => {
                   />
                   
                   {isMosaicExpanded && (
-                      <div className="pl-6 border-l border-white/10 mt-1 mb-4 space-y-0.5 animate-in slide-in-from-top-2 duration-300">
+                      <div className="pl-6 border-l border-white/15 mt-1 mb-4 space-y-0.5 animate-in slide-in-from-top-2 duration-300">
                             <PPSlider 
                                 label={t('ppMosaicSize')} 
                                 value={state.postProcessing?.mosaicSize || 10} 
@@ -562,7 +578,7 @@ const App: React.FC = () => {
                         <div className="flex items-center gap-1">
                             <button 
                                 onClick={() => updatePP({ chromaticEnabled: !state.postProcessing?.chromaticEnabled })}
-                                className={`p-1.5 rounded-lg transition-all ${state.postProcessing?.chromaticEnabled ? 'bg-white/10 text-white' : 'bg-white/5 text-white/30 hover:text-white'}`}
+                                className={`p-1.5 rounded-lg transition-all ${state.postProcessing?.chromaticEnabled ? 'bg-white/20 text-white' : 'bg-white/5 text-white/30 hover:text-white'}`}
                                 title="Toggle Chromatic"
                             >
                                 {state.postProcessing?.chromaticEnabled ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4 text-white/30" />}
@@ -579,7 +595,7 @@ const App: React.FC = () => {
                   />
                   
                   {isChromaticExpanded && (
-                      <div className="pl-6 border-l border-white/10 mt-1 mb-4 space-y-3 animate-in slide-in-from-top-2 duration-300">
+                      <div className="pl-6 border-l border-white/15 mt-1 mb-4 space-y-3 animate-in slide-in-from-top-2 duration-300">
                         <div className="flex items-center gap-4 min-h-[2.25rem] select-none transition-opacity">
                             <span className={`text-[10px] font-bold text-white/50 ${isZh ? 'w-16' : 'w-20'} flex-shrink-0 tracking-tighter leading-[1.1] uppercase break-words`}>{t('ppChromaticOffset')}</span>
                             <div className="flex-1 flex items-center gap-3">
@@ -638,7 +654,7 @@ const App: React.FC = () => {
                         <div className="flex items-center gap-1">
                             <button 
                                 onClick={() => updatePP({ bloomEnabled: !state.postProcessing?.bloomEnabled })}
-                                className={`p-1.5 rounded-lg transition-all ${state.postProcessing?.bloomEnabled ? 'bg-white/10 text-white' : 'bg-white/5 text-white/30 hover:text-white'}`}
+                                className={`p-1.5 rounded-lg transition-all ${state.postProcessing?.bloomEnabled ? 'bg-white/20 text-white' : 'bg-white/5 text-white/30 hover:text-white'}`}
                                 title="Toggle Bloom"
                             >
                                 {state.postProcessing?.bloomEnabled ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4 text-white/30" />}
@@ -655,7 +671,7 @@ const App: React.FC = () => {
                   />
                   
                   {isBloomExpanded && (
-                      <div className="pl-6 border-l border-white/10 mt-1 mb-4 space-y-0.5 animate-in slide-in-from-top-2 duration-300">
+                      <div className="pl-6 border-l border-white/15 mt-1 mb-4 space-y-0.5 animate-in slide-in-from-top-2 duration-300">
                             <PPSlider 
                                 label={t('ppBloomStrength')} 
                                 value={state.postProcessing?.bloomStrength ?? 2.7} 
@@ -699,7 +715,7 @@ const App: React.FC = () => {
                         <div className="flex items-center gap-1">
                             <button 
                                 onClick={() => updatePP({ hueEnabled: !state.postProcessing?.hueEnabled })}
-                                className={`p-1.5 rounded-lg transition-all ${state.postProcessing?.hueEnabled ? 'bg-white/10 text-white' : 'bg-white/5 text-white/30 hover:text-white'}`}
+                                className={`p-1.5 rounded-lg transition-all ${state.postProcessing?.hueEnabled ? 'bg-white/20 text-white' : 'bg-white/5 text-white/30 hover:text-white'}`}
                                 title="Toggle Hue"
                             >
                                 {state.postProcessing?.hueEnabled ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4 text-white/30" />}
@@ -716,7 +732,7 @@ const App: React.FC = () => {
                   />
                   
                   {isHueExpanded && (
-                      <div className="pl-6 border-l border-white/10 mt-1 mb-4 space-y-0.5 animate-in slide-in-from-top-2 duration-300">
+                      <div className="pl-6 border-l border-white/15 mt-1 mb-4 space-y-0.5 animate-in slide-in-from-top-2 duration-300">
                             <PPSlider 
                                 label={t('ppHue')} 
                                 value={state.postProcessing?.hue || 0} 
@@ -747,7 +763,7 @@ const App: React.FC = () => {
                         <div className="flex items-center gap-1">
                             <button 
                                 onClick={() => updatePP({ brightnessEnabled: !state.postProcessing?.brightnessEnabled })}
-                                className={`p-1.5 rounded-lg transition-all ${state.postProcessing?.brightnessEnabled ? 'bg-white/10 text-white' : 'bg-white/5 text-white/30 hover:text-white'}`}
+                                className={`p-1.5 rounded-lg transition-all ${state.postProcessing?.brightnessEnabled ? 'bg-white/20 text-white' : 'bg-white/5 text-white/30 hover:text-white'}`}
                                 title="Toggle Brightness"
                             >
                                 {state.postProcessing?.brightnessEnabled ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4 text-white/30" />}
@@ -764,7 +780,7 @@ const App: React.FC = () => {
                   />
                   
                   {isBrightnessExpanded && (
-                      <div className="pl-6 border-l border-white/10 mt-1 mb-4 space-y-0.5 animate-in slide-in-from-top-2 duration-300">
+                      <div className="pl-6 border-l border-white/15 mt-1 mb-4 space-y-0.5 animate-in slide-in-from-top-2 duration-300">
                             <PPSlider 
                                 label={t('ppBrightness')} 
                                 value={state.postProcessing?.brightness ?? 100} 
@@ -794,7 +810,7 @@ const App: React.FC = () => {
                         <div className="flex items-center gap-1">
                             <button 
                                 onClick={() => updatePP({ vignetteEnabled: !state.postProcessing?.vignetteEnabled })}
-                                className={`p-1.5 rounded-lg transition-all ${state.postProcessing?.vignetteEnabled ? 'bg-white/10 text-white' : 'bg-white/5 text-white/30 hover:text-white'}`}
+                                className={`p-1.5 rounded-lg transition-all ${state.postProcessing?.vignetteEnabled ? 'bg-white/20 text-white' : 'bg-white/5 text-white/30 hover:text-white'}`}
                                 title="Toggle Vignette"
                             >
                                 {state.postProcessing?.vignetteEnabled ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4 text-white/30" />}
@@ -811,7 +827,7 @@ const App: React.FC = () => {
                   />
                   
                   {isVignetteExpanded && (
-                      <div className="pl-6 border-l border-white/10 mt-1 mb-4 space-y-0.5 animate-in slide-in-from-top-2 duration-300">
+                      <div className="pl-6 border-l border-white/15 mt-1 mb-4 space-y-0.5 animate-in slide-in-from-top-2 duration-300">
                             <PPSlider 
                                 label={t('ppVignetteDarkness')} 
                                 value={state.postProcessing?.vignetteDarkness ?? 80} 
@@ -841,7 +857,7 @@ const App: React.FC = () => {
                         <div className="flex items-center gap-1">
                             <button 
                                 onClick={() => updatePP({ noiseEnabled: !state.postProcessing?.noiseEnabled })}
-                                className={`p-1.5 rounded-lg transition-all ${state.postProcessing?.noiseEnabled ? 'bg-white/10 text-white' : 'bg-white/5 text-white/30 hover:text-white'}`}
+                                className={`p-1.5 rounded-lg transition-all ${state.postProcessing?.noiseEnabled ? 'bg-white/20 text-white' : 'bg-white/5 text-white/30 hover:text-white'}`}
                                 title="Toggle Noise"
                             >
                                 {state.postProcessing?.noiseEnabled ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4 text-white/30" />}
@@ -858,7 +874,7 @@ const App: React.FC = () => {
                   />
                   
                   {isNoiseExpanded && (
-                      <div className="pl-6 border-l border-white/10 mt-1 mb-4 space-y-0.5 animate-in slide-in-from-top-2 duration-300">
+                      <div className="pl-6 border-l border-white/15 mt-1 mb-4 space-y-0.5 animate-in slide-in-from-top-2 duration-300">
                             <PPSlider 
                                 label={t('ppNoiseAmount')} 
                                 value={state.postProcessing?.noiseAmount ?? 36} 
@@ -889,7 +905,7 @@ const App: React.FC = () => {
 
         {state.postProcessing?.isPicking && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <div className="px-6 py-3 bg-white text-black rounded-full font-bold text-sm shadow-2xl animate-bounce flex items-center gap-3">
+                <div className="px-6 py-3 bg-white text-black rounded-full font-bold text-sm shadow-2xl animate-bounce flex items-center gap-3 ring-4 ring-black/20">
                     <Target className="w-5 h-5" />
                     {t('pickFocus')}
                 </div>
@@ -897,10 +913,10 @@ const App: React.FC = () => {
         )}
 
         {uiVisible && (
-          <div className="absolute bottom-8 left-8 space-y-2 text-white/60 text-sm font-medium bg-black/20 backdrop-blur-sm p-4 rounded-2xl border border-white/5 shadow-2xl">
-            <p className="flex justify-between gap-4 uppercase">{t('latStream')}: <span className="text-white font-bold font-mono">{coords.lat}</span></p>
-            <p className="flex justify-between gap-4 uppercase">{t('lngStream')}: <span className="text-white font-bold font-mono">{coords.lng}</span></p>
-            <p className="flex justify-between gap-4 uppercase">{t('uptime')}: <span className="text-white font-bold font-mono">{(performance.now()/1000).toFixed(0)}S</span></p>
+          <div className="absolute bottom-8 left-8 space-y-2 text-white/60 text-sm font-medium bg-black/40 backdrop-blur-xl p-6 rounded-3xl border border-white/10 shadow-2xl pointer-events-auto ring-1 ring-white/10">
+            <p className="flex justify-between gap-6 uppercase">{t('latStream')}: <span className="text-white font-bold font-mono">{coords.lat}</span></p>
+            <p className="flex justify-between gap-6 uppercase">{t('lngStream')}: <span className="text-white font-bold font-mono">{coords.lng}</span></p>
+            <p className="flex justify-between gap-6 uppercase">{t('uptime')}: <span className="text-white font-bold font-mono">{(performance.now()/1000).toFixed(0)}S</span></p>
           </div>
         )}
 
@@ -910,6 +926,66 @@ const App: React.FC = () => {
           </div>
         )}
       </div>
+
+      {showUpdateNotice && (
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-6 backdrop-blur-3xl bg-black/10">
+           <div className="w-full max-w-lg bg-black/40 backdrop-blur-3xl border border-white/20 rounded-[2.5rem] shadow-[0_40px_100px_-20px_rgba(0,0,0,0.9)] p-10 relative animate-in fade-in zoom-in-95 duration-300 ring-1 ring-white/20">
+              <button 
+                onClick={closeUpdateNotice}
+                className="absolute top-8 right-8 p-2 text-white/40 hover:text-white transition-colors"
+              >
+                <CloseIcon className="w-5 h-5" />
+              </button>
+
+              <div className="flex flex-col items-center text-center mb-10">
+                <div className="w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center mb-6 shadow-xl border border-white/5">
+                  <Sparkles className="w-8 h-8 text-white" />
+                </div>
+                <h2 className="text-2xl font-bold tracking-[0.2em] text-white uppercase">{t('updateTitle')}</h2>
+                <div className="h-0.5 w-12 bg-white/20 mt-4"></div>
+              </div>
+
+              <div className="space-y-8 mb-12">
+                <div className="flex gap-5">
+                   <div className="p-3 bg-white/10 rounded-xl h-fit border border-white/5">
+                      <Sparkles className="w-5 h-5 text-white" />
+                   </div>
+                   <div>
+                      <h3 className="text-sm font-bold text-white mb-1 uppercase tracking-wider">{t('updatePPTitle')}</h3>
+                      <p className="text-xs text-white/50 leading-relaxed font-medium">{t('updatePPDesc')}</p>
+                   </div>
+                </div>
+
+                <div className="flex gap-5">
+                   <div className="p-3 bg-white/10 rounded-xl h-fit border border-white/5">
+                      <Camera className="w-5 h-5 text-white" />
+                   </div>
+                   <div>
+                      <h3 className="text-sm font-bold text-white mb-1 uppercase tracking-wider">{t('updateSaveTitle')}</h3>
+                      <p className="text-xs text-white/50 leading-relaxed font-medium">{t('updateSaveDesc')}</p>
+                   </div>
+                </div>
+
+                <div className="flex gap-5">
+                   <div className="p-3 bg-white/10 rounded-xl h-fit border border-white/5">
+                      <EyeOff className="w-5 h-5 text-white" />
+                   </div>
+                   <div>
+                      <h3 className="text-sm font-bold text-white mb-1 uppercase tracking-wider">{t('updateUITitle')}</h3>
+                      <p className="text-xs text-white/50 leading-relaxed font-medium">{t('updateUIDesc')}</p>
+                   </div>
+                </div>
+              </div>
+
+              <button 
+                onClick={closeUpdateNotice}
+                className="w-full py-4 bg-white text-black text-xs font-bold tracking-[0.3em] uppercase rounded-2xl hover:bg-white/90 transition-all shadow-xl"
+              >
+                {t('updateClose')}
+              </button>
+           </div>
+        </div>
+      )}
     </div>
   );
 };

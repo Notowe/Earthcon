@@ -231,14 +231,16 @@ export const GlobeView = React.memo<GlobeViewProps>(({ state, onGlobeUpdate }) =
     if (!state.postProcessing || !state.postProcessing.enabled) return 'none';
     const pp = state.postProcessing;
     const intensity = (pp.opacity ?? 100) / 100;
+    const boost = 5.0; // 5x effect intensity booster
     
     let filters = '';
     
     if (pp.brightnessEnabled) {
       const bIntensity = (pp.brightnessIntensity ?? 100) / 100 * intensity;
       if (pp.brightness !== 100) {
-          const b = 100 + (pp.brightness - 100) * bIntensity;
-          filters += ` brightness(${b}%)`;
+          // Increase deviation from neutral (100) by 5x
+          const b = 100 + (pp.brightness - 100) * boost * bIntensity;
+          filters += ` brightness(${Math.max(0, b)}%)`;
       }
       if (pp.contrast !== 100) {
           const c = 100 + (pp.contrast - 100) * bIntensity;
@@ -249,18 +251,16 @@ export const GlobeView = React.memo<GlobeViewProps>(({ state, onGlobeUpdate }) =
     if (pp.hueEnabled) {
         const hIntensity = (pp.hueIntensity ?? 100) / 100 * intensity;
         
-        // UI range 0-100 maps to 0-360 degrees
         if (pp.hue !== 0) {
             const h = (pp.hue * 3.6) * hIntensity;
             filters += ` hue-rotate(${h}deg) `;
         }
         
-        // UI range 0-100 maps to 0-1000% saturation
-        // Normal saturation is UI value 10 (100%)
         if (pp.saturation !== 10) {
             const sValue = pp.saturation * 10;
-            const s = 100 + (sValue - 100) * hIntensity;
-            filters += ` saturate(${s}%) `;
+            // Increase deviation from neutral (100) by 5x
+            const s = 100 + (sValue - 100) * boost * hIntensity;
+            filters += ` saturate(${Math.max(0, s)}%) `;
         }
     }
     if (pp.bloomEnabled && pp.bloom > 0) {
@@ -691,7 +691,6 @@ export const GlobeView = React.memo<GlobeViewProps>(({ state, onGlobeUpdate }) =
             <feBlend in="strong-glow" in2="SourceGraphic" mode="screen" />
           </filter>
 
-          {/* New Advanced Noise Filter */}
           <filter id="noise-filter">
              <feTurbulence type="fractalNoise" baseFrequency={noiseFreq} numOctaves={noiseOctaves} result="noise-texture" />
              <feColorMatrix type="matrix" values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 1 0" result="grayscale-noise" />

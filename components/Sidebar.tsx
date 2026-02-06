@@ -14,7 +14,7 @@ interface SidebarProps {
 const Switch: React.FC<{ checked: boolean; onChange: () => void; label?: string }> = ({ checked, onChange, label }) => (
   <div className="flex items-center gap-3 cursor-pointer group" onClick={onChange}>
     {label && <span className="text-xs text-white/40 uppercase group-hover:text-white/60 transition-colors font-bold">{label}</span>}
-    <div className={`w-10 h-5 rounded-full border border-white/60 flex items-center p-[2px] transition-all duration-300 ${checked ? 'bg-white/20' : 'bg-transparent'}`}>
+    <div className={`w-10 h-5 rounded-full border border-white/60 flex items-center p-[2px] transition-all duration-300 ${checked ? 'bg-white/20' : 'bg-black/50'}`}>
       <div className={`w-3.5 h-3.5 rounded-full bg-white transition-transform duration-300 ${checked ? 'translate-x-5' : 'translate-x-0'}`} />
     </div>
   </div>
@@ -398,10 +398,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ state, onUpdate, t }) => {
   };
 
   // 统一的 select 样式类
-  const selectClassName = "w-full p-2 bg-[#1a1a1a] border border-white/10 text-white text-xs focus:outline-none focus:border-white/30 [&>option]:bg-[#1a1a1a] [&>option]:text-white";
+  const selectClassName = "w-full p-2 bg-black/50 border border-white/10 text-white text-xs focus:outline-none focus:border-white/30 [&>option]:bg-black/90 [&>option]:text-white";
 
   return (
-    <div className="w-80 h-full bg-gradient-to-b from-black/80 to-black/50 backdrop-blur-md text-white border-l border-white/10 flex flex-col overflow-hidden shadow-xl">
+    <div className="w-80 h-full bg-black/40 backdrop-blur-xl text-white border-l border-white/10 flex flex-col overflow-hidden shadow-xl ring-1 ring-white/5">
       <div className="p-4 border-b border-white/10 flex items-center justify-between text-lg font-bold tracking-wider">
         <h2 className="text-white uppercase">{t('terminalTitle')}</h2>
         <Fingerprint className="w-5 h-5 text-white/60" />

@@ -1,6 +1,16 @@
 
 export const translations = {
   en: {
+    // ... (existing translations)
+    updateTitle: "System Update v1.1",
+    updatePPTitle: "Post Processing",
+    updatePPDesc: "Cinematic real-time filters: DoF, Bloom, Chromatic, and more.",
+    updateSaveTitle: "High-Res Capture",
+    updateSaveDesc: "One-click to save the current view with all post-effects preserved.",
+    updateUITitle: "Immersive View",
+    updateUIDesc: "Toggle UI to enjoy a pure, edge-to-edge planetary experience.",
+    updateClose: "Enter Terminal",
+    // ... rest of previous translations
     appearance: "Others",
     surfaceConfig: "Strata Texture Fill", 
     globalSurface: "Surface Config", 
@@ -17,7 +27,6 @@ export const translations = {
     altitude: "Altitude",
     wireframe: "Wireframe",
     wireframeColor: "Grid Color",
-    
     addLayer: "+ Add Stratum",
     layerName: "Stratum ID",
     fillMode: "Fill Mode",
@@ -77,7 +86,6 @@ export const translations = {
     manualLinks: "Manual Uplinks",
     countryColor: "Surface Color",
     countryColor2: "Gradient End",
-
     satelliteMap: "Satellite Texture",
     blendMode: "Blend Mode",
     borderConfig: "Border Style",
@@ -88,7 +96,6 @@ export const translations = {
     blendOverlay: "Overlay",
     blendMultiply: "Multiply",
     blendScreen: "Screen",
-
     gridLab: "Structure Grid",
     gridStructure: "Grid Structure",
     showPoints: "Points",
@@ -99,7 +106,6 @@ export const translations = {
     dashGap: "Gap Interval",
     addGrid: "+ Add Grid",
     visible: "Visible",
-
     arcStyleGlobal: "Global Link Style",
     distribution: "Distribution",
     distHorizontal: "Horizontal (Shuttle)",
@@ -107,16 +113,13 @@ export const translations = {
     bundleSize: "Bundle Size",
     spacing: "Spacing",
     randomFlux: "Random Flux",
-    
     textureSync: "Texture Sync",
     addCountryTitle: "Add Country",
     searchAddPlaceholder: "Search to add...",
-
     autoRotate: "Auto Rotate",
     showAtmosphere: "Atmosphere",
     heightSync: "Height Sync",
     surfaceSync: "Surface Sync",
-    
     themeManager: "Theme Manager",
     saveTheme: "Save to Lib",
     exportJson: "Export JSON",
@@ -125,14 +128,12 @@ export const translations = {
     atmosColor: "Atmos Color",
     atmosAltitude: "Atmos Size",
     themeSaved: "Theme Saved",
-    
     currentTheme: "Current Theme",
     themeLib: "My Library",
     themeLimitExceeded: "Theme name cannot exceed 80 characters.",
     themeAutoSaved: "Imported theme auto-saved to library.",
     unknownTheme: "Untitled Theme",
     presetThemes: "Recommended Themes",
-
     postProcessing: "Post Processing",
     ppDoF: "Depth of Field",
     ppBlur: "Blur Intensity",
@@ -161,6 +162,16 @@ export const translations = {
     pickFocus: "Pick Focus Point"
   },
   zh: {
+    // ... (existing translations)
+    updateTitle: "系统版本更新 v1.1",
+    updatePPTitle: "后期调整",
+    updatePPDesc: "电影级实时滤镜：支持景深、光晕、相差、颗粒噪点等。",
+    updateSaveTitle: "后期效果保存",
+    updateSaveDesc: "截图功能已升级，能够完美保留所有后期处理层及滤镜。",
+    updateUITitle: "沉浸式体验",
+    updateUIDesc: "支持一键隐藏 UI，呈现纯净无边框的地球视觉盛宴。",
+    updateClose: "进入系统",
+    // ... rest of previous translations
     appearance: "其它设置",
     surfaceConfig: "地层纹理填充", 
     globalSurface: "地表配置", 
@@ -177,7 +188,6 @@ export const translations = {
     altitude: "基础高度",
     wireframe: "网格结构线",
     wireframeColor: "网格颜色",
-
     addLayer: "+ 添加地层",
     layerName: "地层标识",
     fillMode: "填充模式",
@@ -237,7 +247,6 @@ export const translations = {
     manualLinks: "手动链路管理",
     countryColor: "表面颜色",
     countryColor2: "渐变终止色",
-
     satelliteMap: "卫星贴图映射",
     blendMode: "混合模式",
     borderConfig: "边框样式配置",
@@ -248,7 +257,6 @@ export const translations = {
     blendOverlay: "叠加 (Overlay)",
     blendMultiply: "正片底色 (Multiply)",
     blendScreen: "滤色 (Screen)",
-
     gridLab: "结构网格实验室",
     gridStructure: "网格结构线",
     showPoints: "结构点显隐",
@@ -259,7 +267,6 @@ export const translations = {
     dashGap: "线段分隔间距",
     addGrid: "+ 添加结构网格",
     visible: "是否显示",
-
     arcStyleGlobal: "全局飞线样式",
     distribution: "分布模式",
     distHorizontal: "水平分布 (梭形)",
@@ -267,16 +274,13 @@ export const translations = {
     bundleSize: "单束数量",
     spacing: "间距",
     randomFlux: "随机飞线分布",
-
     textureSync: "同步纹理贴图",
     addCountryTitle: "添加国家",
     searchAddPlaceholder: "搜索以添加...",
-
     autoRotate: "地球自动旋转",
     showAtmosphere: "大气层显示",
     heightSync: "高度锁定同步",
     surfaceSync: "表面配置同步",
-
     themeManager: "主题管理",
     saveTheme: "保存到库",
     exportJson: "导出JSON",
@@ -285,14 +289,12 @@ export const translations = {
     atmosColor: "大气层颜色",
     atmosAltitude: "大气层大小",
     themeSaved: "主题已保存",
-    
     currentTheme: "当前主题",
     themeLib: "我的库",
     themeLimitExceeded: "主题名称不能超过80个字符。",
     themeAutoSaved: "导入的主题已自动存入我的库。",
     unknownTheme: "未命名主题",
     presetThemes: "推荐主题",
-
     postProcessing: "后期调整",
     ppDoF: "景深",
     ppBlur: "模糊强度",
