@@ -123,9 +123,54 @@ export interface AtmosphereConfig {
   altitude: number;
 }
 
+export interface PostProcessingConfig {
+  enabled: boolean;
+  opacity: number;    // 整体透明度/强度 (0-100)
+  dofEnabled?: boolean; // 景深效果独立开关
+  blur: number;       // 虚化强度 (UI显示为“景深”)
+  focus: number;      // 焦点深度/偏移 (0-100)
+  fstop: number;      // 景深范围/焦段 (0-100)
+  focalLat?: number;  // 空间焦点纬度
+  focalLng?: number;  // 空间焦点经度
+  isPicking?: boolean; // 是否正在拾取焦点
+  mosaic: number;     // 马赛克透明度/强度
+  mosaicEnabled?: boolean; // 马赛克显隐开关
+  mosaicSize?: number; // 马赛克粒度
+  chromatic: number;  // 相差透明度/强度
+  chromaticEnabled?: boolean; // 相差显隐开关
+  chromaticOffsetX?: number; // 相差 X 偏移
+  chromaticOffsetY?: number; // 相差 Y 偏移
+  chromaticLinked?: boolean; // 相差偏移是否锁定
+  bloom: number;      // 光晕整体强度
+  bloomEnabled?: boolean; // 光晕显隐开关
+  bloomStrength?: number; // 光晕增强系数
+  bloomRadius?: number;   // 光晕模糊比例
+  bloomThreshold?: number; // 光晕临界值
+  bloomSmoothing?: number; // 光晕平滑度
+  hue: number;        // 色调 (归一化 0-100, 映射至 360deg)
+  hueEnabled?: boolean; 
+  hueIntensity: number; // 色调独立透明度/强度
+  saturation: number; // 饱和度 (归一化 0-100, 映射至 1000%)
+  brightness: number; // 亮度
+  brightnessEnabled?: boolean;
+  brightnessIntensity: number; // 亮度独立透明度/强度
+  contrast: number;   // 对比度
+  vignette: number;   // 晕影强度滑块兼容性
+  vignetteEnabled?: boolean;
+  vignetteIntensity: number; // 晕影独立透明度/强度
+  vignetteDarkness: number;  // 黑暗度
+  vignetteOffset: number;    // 偏移
+  noise: number;      // 噪点强度滑块兼容性
+  noiseEnabled?: boolean;
+  noiseIntensity: number; // 噪点独立透明度/强度
+  noiseAmount: number;    // 颗粒数量/密度
+  noiseSize: number;      // 颗粒大小
+  noiseRoughness: number; // 粗糙度
+}
+
 export interface GlobeState {
   language: Language;
-  themeName: string; // 新增主题名称
+  themeName: string; 
   
   satellite: SatelliteConfig;
   landAltitude: number;
@@ -158,9 +203,11 @@ export interface GlobeState {
   arcGradientEnabled: boolean;
   arcSegments: number;
   arcGap: number;
-  arcOpacity: number; // 新增透明度控制属性
+  arcOpacity: number; 
   
   heightSync: boolean;
+
+  postProcessing?: PostProcessingConfig;
 }
 
 export interface CountryData {

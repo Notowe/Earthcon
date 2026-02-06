@@ -1,5 +1,5 @@
 {
-  "name": "地球控1.0",
+  "name": "地球控1.1",
   "description": "A high-performance 3D Earth visualization tool featuring holographic styles, adjustable country extrusion heights, and city-to-city flight arcs.",
   "requestFramePermissions": []
 }

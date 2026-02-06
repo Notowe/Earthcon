@@ -7,6 +7,7 @@ import { GEOJSON_URL, CAPITAL_COORDS } from '../constants';
 
 interface GlobeViewProps {
   state: GlobeState;
+  onGlobeUpdate?: (updates: Partial<GlobeState>) => void;
 }
 
 const GEOMETRY_CACHE: Record<string, THREE.BufferGeometry> = {};
@@ -135,7 +136,6 @@ const setBlendMode = (ctx: CanvasRenderingContext2D, mode: BlendMode) => {
 const withOpacity = (colorStr: string, opacity: number) => {
     try {
         const c = new THREE.Color(colorStr);
-        // 强制使用四通道 rgba 格式，帮助引擎识别透明度
         return `rgba(${Math.round(c.r * 255)}, ${Math.round(c.g * 255)}, ${Math.round(c.b * 255)}, ${opacity.toFixed(3)})`;
     } catch (e) {
         return `rgba(255, 255, 255, ${opacity.toFixed(3)})`;
@@ -176,15 +176,118 @@ const fetchWithProgress = async (url: string, onProgress: (loaded: number, total
     return new Response(allChunks);
 };
 
-export const GlobeView = React.memo<GlobeViewProps>(({ state }) => {
+export const GlobeView = React.memo<GlobeViewProps>(({ state, onGlobeUpdate }) => {
   const globeRef = useRef<any>();
   const [countries, setCountries] = useState<any>({ features: [] });
   const [satImage, setSatImage] = useState<HTMLImageElement | null>(null);
   const [generatedTexture, setGeneratedTexture] = useState<string | null>(null);
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  
+  const [focalScreenPos, setFocalScreenPos] = useState({ x: 50, y: 50 });
 
-  // Safety Destructuring
+  useEffect(() => {
+    let frameId: number;
+    const updateFocusPos = () => {
+      const globe = globeRef.current;
+      if (globe && state.postProcessing?.focalLat !== undefined) {
+        const pos = globe.getCoords(state.postProcessing.focalLat, state.postProcessing.focalLng, 0);
+        if (pos) {
+          const vector = new THREE.Vector3(pos.x, pos.y, pos.z);
+          vector.project(globe.camera());
+          const x = (vector.x * 0.5 + 0.5) * 100;
+          const y = (-(vector.y) * 0.5 + 0.5) * 100;
+          setFocalScreenPos({ x, y });
+        }
+      } else {
+        setFocalScreenPos({ x: 50, y: state.postProcessing?.focus ?? 50 });
+      }
+      frameId = requestAnimationFrame(updateFocusPos);
+    };
+    if (state.postProcessing?.enabled) {
+      updateFocusPos();
+    }
+    return () => cancelAnimationFrame(frameId);
+  }, [state.postProcessing?.focalLat, state.postProcessing?.focalLng, state.postProcessing?.enabled, state.postProcessing?.focus]);
+
+  const dofMaskStyles = useMemo(() => {
+    if (!state.postProcessing?.enabled || !state.postProcessing.dofEnabled || state.postProcessing.blur <= 0) return { display: 'none' };
+    const { blur, fstop, opacity = 100 } = state.postProcessing;
+    const range = fstop ?? 30;
+    const inner = Math.max(0, range / 2);
+    const outer = Math.max(inner + 10, range);
+    const effectiveOpacity = opacity / 100;
+    
+    return {
+      backdropFilter: `blur(${(blur / 5) * effectiveOpacity}px)`,
+      maskImage: `radial-gradient(circle at ${focalScreenPos.x}% ${focalScreenPos.y}%, transparent ${inner}%, black ${outer}%)`,
+      WebkitMaskImage: `radial-gradient(circle at ${focalScreenPos.x}% ${focalScreenPos.y}%, transparent ${inner}%, black ${outer}%)`,
+      opacity: effectiveOpacity,
+      transition: 'backdrop-filter 0.3s ease-out, opacity 0.3s ease-out'
+    };
+  }, [state.postProcessing, focalScreenPos]);
+
+  const filterString = useMemo(() => {
+    if (!state.postProcessing || !state.postProcessing.enabled) return 'none';
+    const pp = state.postProcessing;
+    const intensity = (pp.opacity ?? 100) / 100;
+    
+    let filters = '';
+    
+    if (pp.brightnessEnabled) {
+      const bIntensity = (pp.brightnessIntensity ?? 100) / 100 * intensity;
+      if (pp.brightness !== 100) {
+          const b = 100 + (pp.brightness - 100) * bIntensity;
+          filters += ` brightness(${b}%)`;
+      }
+      if (pp.contrast !== 100) {
+          const c = 100 + (pp.contrast - 100) * bIntensity;
+          filters += ` contrast(${c}%)`;
+      }
+    }
+
+    if (pp.hueEnabled) {
+        const hIntensity = (pp.hueIntensity ?? 100) / 100 * intensity;
+        
+        // UI range 0-100 maps to 0-360 degrees
+        if (pp.hue !== 0) {
+            const h = (pp.hue * 3.6) * hIntensity;
+            filters += ` hue-rotate(${h}deg) `;
+        }
+        
+        // UI range 0-100 maps to 0-1000% saturation
+        // Normal saturation is UI value 10 (100%)
+        if (pp.saturation !== 10) {
+            const sValue = pp.saturation * 10;
+            const s = 100 + (sValue - 100) * hIntensity;
+            filters += ` saturate(${s}%) `;
+        }
+    }
+    if (pp.bloomEnabled && pp.bloom > 0) {
+        filters += ` url(#bloom-filter) `;
+    }
+    if (pp.blur > 0 && !pp.dofEnabled && !state.postProcessing.focalLat) {
+        filters += ` blur(${(pp.blur / 40) * intensity}px) `;
+    }
+    if (pp.chromaticEnabled && pp.chromatic > 0) {
+        filters += ` url(#chromatic-dv-filter) `;
+    }
+    return filters.trim() || 'none';
+  }, [state.postProcessing]);
+
+  const handleGlobeClick = ({ lat, lng }: { lat: number, lng: number }) => {
+    if (state.postProcessing?.isPicking && onGlobeUpdate) {
+      onGlobeUpdate({
+        postProcessing: {
+          ...state.postProcessing,
+          focalLat: lat,
+          focalLng: lng,
+          isPicking: false
+        }
+      });
+    }
+  };
+
   const { 
     landConfig = { style: SurfaceStyle.REALISTIC, color: '#1a1a1a', opacity: 1.0, gradientEnabled: false, color2: '#333333' },
     oceanConfig = { style: SurfaceStyle.REALISTIC, color: '#050505', opacity: 1.0, gradientEnabled: true, color2: '#111111' },
@@ -207,18 +310,16 @@ export const GlobeView = React.memo<GlobeViewProps>(({ state }) => {
   useEffect(() => {
     const loadData = async () => {
         try {
-            // 1. Fetch GeoJSON (Weight: 60%)
             const jsonResponse = await fetchWithProgress(GEOJSON_URL, (loaded, total) => {
-                const safeTotal = total || 2500000; // ~2.5MB estimate
+                const safeTotal = total || 2500000; 
                 const percent = Math.min(1, loaded / safeTotal);
                 setLoadingProgress(Math.round(percent * 60));
             });
             const geoJsonData = await jsonResponse.json();
             setLoadingProgress(60);
 
-            // 2. Load Satellite Image (Weight: 40%) - Real Progress
             const imgResponse = await fetchWithProgress(SAT_IMG_URL, (loaded, total) => {
-                const safeTotal = total || 1000000; // ~1MB estimate
+                const safeTotal = total || 1000000; 
                 const percent = Math.min(1, loaded / safeTotal);
                 setLoadingProgress(60 + Math.round(percent * 40));
             });
@@ -228,7 +329,7 @@ export const GlobeView = React.memo<GlobeViewProps>(({ state }) => {
             image.src = imgUrl;
             await new Promise((resolve) => {
                 image.onload = resolve;
-                image.onerror = resolve; // Continue even if image fails
+                image.onerror = resolve; 
             });
             
             setLoadingProgress(100);
@@ -268,7 +369,6 @@ export const GlobeView = React.memo<GlobeViewProps>(({ state }) => {
 
     ctx.clearRect(0, 0, 1024, 512);
 
-    // 1. Draw Ocean Background
     ctx.save();
     ctx.globalCompositeOperation = 'source-over';
     if (oceanConfig.gradientEnabled) {
@@ -279,12 +379,10 @@ export const GlobeView = React.memo<GlobeViewProps>(({ state }) => {
     } else {
         ctx.fillStyle = oceanConfig.color || '#000000';
     }
-    // Apply ocean opacity
     ctx.globalAlpha = oceanConfig.opacity ?? 1.0; 
     ctx.fillRect(0, 0, 1024, 512);
     ctx.restore();
 
-    // 2. Draw Land Background
     if (landConfig.style === SurfaceStyle.SOLID || landConfig.style === SurfaceStyle.REALISTIC) {
         ctx.save();
         ctx.globalCompositeOperation = 'source-over';
@@ -305,7 +403,7 @@ export const GlobeView = React.memo<GlobeViewProps>(({ state }) => {
         });
         ctx.closePath();
         
-        ctx.clip(); // Clip to land mass
+        ctx.clip(); 
 
         if (landConfig.gradientEnabled) {
             const grad = ctx.createLinearGradient(0, 0, 0, 512);
@@ -320,7 +418,6 @@ export const GlobeView = React.memo<GlobeViewProps>(({ state }) => {
         ctx.restore();
     }
 
-    // 3. Draw Satellite Image on top with selected blend mode
     if (satellite.show && satImage) {
       ctx.save();
       setBlendMode(ctx, satellite.blendMode || 'overlay');
@@ -344,7 +441,6 @@ export const GlobeView = React.memo<GlobeViewProps>(({ state }) => {
               material.bumpMap = null;
               material.displacementScale = 0;
               material.wireframe = false; 
-              // Fix: Allow transparency in the globe material to respect canvas alpha
               material.transparent = true;
               material.opacity = 1.0; 
               material.needsUpdate = true;
@@ -440,7 +536,6 @@ export const GlobeView = React.memo<GlobeViewProps>(({ state }) => {
       return withOpacity(config.color || '#ffffff', opacity);
     }
     
-    // Default land behavior
     if (landConfig.style === SurfaceStyle.REALISTIC) return 'rgba(0,0,0,0.01)';
     const landOpacity = landConfig.opacity ?? 1.0;
     if (landConfig.gradientEnabled) {
@@ -467,9 +562,7 @@ export const GlobeView = React.memo<GlobeViewProps>(({ state }) => {
     const results: any[] = [];
     const len = countries.features.length;
 
-    // 获取透明度
     const currentOpacity = state.arcOpacity ?? 1.0;
-    // 预处理颜色，注入透明度
     const arcColor = state.arcGradientEnabled 
       ? [withOpacity(state.arcColor, currentOpacity), withOpacity(state.arcColor2, currentOpacity)] 
       : withOpacity(state.arcColor, currentOpacity);
@@ -529,137 +622,279 @@ export const GlobeView = React.memo<GlobeViewProps>(({ state }) => {
     return results;
   }, [state.randomArcs, state.arcGroups, countries.features, state.arcColor, state.arcColor2, state.arcGradientEnabled, state.arcOpacity]);
 
+  const chromOffsetX = (state.postProcessing?.chromaticOffsetX ?? 15) * ((state.postProcessing?.chromatic ?? 0) / 100);
+  const chromOffsetY = (state.postProcessing?.chromaticOffsetY ?? 15) * ((state.postProcessing?.chromatic ?? 0) / 100);
+  const chromOpacity = ((state.postProcessing?.chromatic ?? 0) / 100) * ((state.postProcessing?.opacity ?? 100) / 100);
+
+  // Bloom SVG filter parameters
+  const bloomThreshold = state.postProcessing?.bloomThreshold ?? 0.36;
+  const bloomSmoothing = state.postProcessing?.bloomSmoothing ?? 0.25;
+  const bloomRadius = (state.postProcessing?.bloomRadius ?? 1.0) * 12; // Base radius scale
+  const bloomStrength = (state.postProcessing?.bloomStrength ?? 2.7) * ((state.postProcessing?.bloom ?? 100) / 100);
+  const bloomOverallOpacity = ((state.postProcessing?.opacity ?? 100) / 100);
+
+  // Vignette parameters
+  const vIntensity = (state.postProcessing?.vignetteIntensity ?? 100) / 100 * ((state.postProcessing?.opacity ?? 100) / 100);
+  const vOffset = state.postProcessing?.vignetteOffset ?? 50;
+  const vDarkness = (state.postProcessing?.vignetteDarkness ?? 80) / 100;
+
+  // Noise dynamic parameters
+  const noiseSize = (state.postProcessing?.noiseSize ?? 25);
+  const noiseFreq = (101 - noiseSize) / 100; // Small size = high frequency
+  const noiseOctaves = Math.ceil((state.postProcessing?.noiseRoughness ?? 50) / 20);
+  const noiseAmount = (state.postProcessing?.noiseAmount ?? 36) / 100;
+  const noiseIntensity = (state.postProcessing?.noiseIntensity ?? 100) / 100 * ((state.postProcessing?.opacity ?? 100) / 100);
+
   return (
-    <div className="w-full h-full relative cursor-move">
-      <Globe
-        ref={globeRef} width={window.innerWidth} height={window.innerHeight} 
-        backgroundColor="#000000"
-        globeImageUrl={generatedTexture || undefined}
-        globeResolution={64} 
-        showAtmosphere={atmosphere.show} 
-        atmosphereColor={atmosphere.color} 
-        atmosphereAltitude={atmosphere.altitude}
-        polygonsData={countries.features}
-        polygonAltitude={getPolygonAltitude}
-        polygonCapColor={getCapColor}
-        polygonSideColor={(d: any) => {
-          if (!d || !d.properties) return '#ffffff';
-          const config = stateCountries.find(c => c.id === d.properties.ISO_A3);
-          if (config) {
-             return withOpacity(config.color || landConfig.color || '#1a1a1a', config.opacity ?? 1.0);
-          }
-          // Fix: Ensure generic landmass sides respect landConfig.opacity
-          return withOpacity(landConfig.color || '#1a1a1a', landConfig.opacity ?? 1.0); 
-        }}
-        polygonStrokeColor={(d: any) => {
-          if (!globalBorder.visible) return 'rgba(0,0,0,0)';
-          const baseColor = globalBorder.color || '#ffffff';
-          const op = globalBorder.opacity ?? 1.0;
+    <div className={`w-full h-full relative overflow-hidden bg-black ${state.postProcessing?.isPicking ? 'cursor-crosshair' : ''}`}>
+      <svg className="hidden">
+        <defs>
+          <filter id="pixelate">
+            <feFlood floodOpacity="0" result="transparent" />
+            <feMorphology operator="dilate" radius={Math.max(0.1, (state.postProcessing?.mosaicSize || 10) / 10)} />
+          </filter>
           
-          if (globalBorder.gradientEnabled && globalBorder.color2) {
-            const bbox = d._bbox || { minY: -90, maxY: 90 };
-            const lat = (bbox.minY + bbox.maxY) / 2;
-            const t = Math.max(0, Math.min(1, (lat + 90) / 180)); 
-            const c1 = new THREE.Color(baseColor);
-            const c2 = new THREE.Color(globalBorder.color2);
-            // 这里 lerp 后的颜色直接通过 getStyle 转换，再由 withOpacity 注入透明度
-            return withOpacity(c1.lerp(c2, t).getStyle(), op);
-          }
-          return withOpacity(baseColor, op);
+          <filter id="chromatic-dv-filter" x="-20%" y="-20%" width="140%" height="140%">
+            <feColorMatrix in="SourceGraphic" type="matrix" 
+              values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0" result="red-channel" />
+            <feColorMatrix in="SourceGraphic" type="matrix" 
+              values="0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 1 0" result="green-channel" />
+            <feColorMatrix in="SourceGraphic" type="matrix" 
+              values="0 0 0 0 0  0 0 0 0 0  0 0 1 0 0  0 0 0 1 0" result="blue-channel" />
+            <feOffset in="red-channel" dx={chromOffsetX} dy={chromOffsetY} result="red-offset" />
+            <feGaussianBlur in="red-offset" stdDeviation={Math.max(0, chromOffsetX/10)} result="red-blurred" />
+            <feOffset in="blue-channel" dx={-chromOffsetX} dy={-chromOffsetY} result="blue-offset" />
+            <feGaussianBlur in="blue-offset" stdDeviation={Math.max(0, chromOffsetX/10)} result="blue-blurred" />
+            <feBlend in="red-blurred" in2="green-channel" mode="screen" result="rg-blend" />
+            <feBlend in="rg-blend" in2="blue-blurred" mode="screen" result="rgb-final" />
+            <feComposite in="rgb-final" in2="SourceGraphic" operator="arithmetic" k1="0" k2={chromOpacity} k3={1 - chromOpacity} k4="0" />
+          </filter>
+
+          <filter id="bloom-filter" x="-30%" y="-30%" width="160%" height="160%">
+            <feColorMatrix type="matrix" 
+              values={`
+                1 1 1 0 ${-bloomThreshold}
+                1 1 1 0 ${-bloomThreshold}
+                1 1 1 0 ${-bloomThreshold}
+                0 0 0 1 0
+              `}
+              result="highlights"
+            />
+            <feGaussianBlur in="highlights" stdDeviation={bloomSmoothing * 5} result="smoothed-highlights" />
+            <feGaussianBlur in="smoothed-highlights" stdDeviation={bloomRadius} result="blurred-glow" />
+            <feComponentTransfer in="blurred-glow" result="strong-glow">
+              <feFuncR type="linear" slope={bloomStrength} />
+              <feFuncG type="linear" slope={bloomStrength} />
+              <feFuncB type="linear" slope={bloomStrength} />
+              <feFuncA type="linear" slope={bloomStrength * bloomOverallOpacity} />
+            </feComponentTransfer>
+            <feBlend in="strong-glow" in2="SourceGraphic" mode="screen" />
+          </filter>
+
+          {/* New Advanced Noise Filter */}
+          <filter id="noise-filter">
+             <feTurbulence type="fractalNoise" baseFrequency={noiseFreq} numOctaves={noiseOctaves} result="noise-texture" />
+             <feColorMatrix type="matrix" values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 1 0" result="grayscale-noise" />
+             <feComponentTransfer in="grayscale-noise" result="weighted-noise">
+                <feFuncA type="linear" slope={noiseAmount * noiseIntensity} />
+             </feComponentTransfer>
+             <feBlend in="weighted-noise" in2="SourceGraphic" mode="overlay" />
+          </filter>
+        </defs>
+      </svg>
+
+      <div 
+        className="w-full h-full"
+        style={{ 
+          filter: filterString, 
+          transition: 'filter 0.3s ease-out' 
         }}
-        polygonStrokeWidth={globalBorder.visible ? (globalBorder.width || 0.1) : 0}
-        polygonsTransitionDuration={300}
-        customLayerData={combinedLattice}
-        customThreeObject={(d: any) => {
-          if (!d) return new THREE.Group();
+      >
+        <Globe
+          ref={globeRef} width={window.innerWidth} height={window.innerHeight} 
+          backgroundColor="#000000"
+          globeImageUrl={generatedTexture || undefined}
+          globeResolution={64} 
+          showAtmosphere={atmosphere.show} 
+          atmosphereColor={atmosphere.color} 
+          atmosphereAltitude={atmosphere.altitude}
+          polygonsData={countries.features}
+          polygonAltitude={getPolygonAltitude}
+          polygonCapColor={getCapColor}
+          onPolygonClick={handleGlobeClick}
+          onGlobeClick={handleGlobeClick}
+          polygonSideColor={(d: any) => {
+            if (!d || !d.properties) return '#ffffff';
+            const config = stateCountries.find(c => c.id === d.properties.ISO_A3);
+            if (config) {
+               return withOpacity(config.color || landConfig.color || '#1a1a1a', config.opacity ?? 1.0);
+            }
+            return withOpacity(landConfig.color || '#1a1a1a', landConfig.opacity ?? 1.0); 
+          }}
+          polygonStrokeColor={(d: any) => {
+            if (!globalBorder.visible) return 'rgba(0,0,0,0)';
+            const baseColor = globalBorder.color || '#ffffff';
+            const op = globalBorder.opacity ?? 1.0;
+            
+            if (globalBorder.gradientEnabled && globalBorder.color2) {
+              const bbox = d._bbox || { minY: -90, maxY: 90 };
+              const lat = (bbox.minY + bbox.maxY) / 2;
+              const t = Math.max(0, Math.min(1, (lat + 90) / 180)); 
+              const c1 = new THREE.Color(baseColor);
+              const c2 = new THREE.Color(globalBorder.color2);
+              return withOpacity(c1.lerp(c2, t).getStyle(), op);
+            }
+            return withOpacity(baseColor, op);
+          }}
+          polygonStrokeWidth={globalBorder.visible ? (globalBorder.width || 0.1) : 0}
+          polygonsTransitionDuration={300}
+          customLayerData={combinedLattice}
+          customThreeObject={(d: any) => {
+            if (!d) return new THREE.Group();
 
-          if (d.isGridLabLayer) {
-             const group = new THREE.Group();
-             const radius = 100 * (1 + (d.altitude || 0));
-             const res = d.resolution || 32;
+            if (d.isGridLabLayer) {
+               const group = new THREE.Group();
+               const radius = 100 * (1 + (d.altitude || 0));
+               const res = d.resolution || 32;
 
-             if (d.showWireframe) {
-                const geo = new THREE.SphereGeometry(radius, res, res / 2);
-                const edges = new THREE.EdgesGeometry(geo);
-                
-                let material;
-                if ((d.dashLength || 0) > 0) {
-                   material = new THREE.LineDashedMaterial({
-                      color: d.color || '#ffffff',
-                      opacity: d.opacity ?? 1.0,
-                      transparent: true,
-                      dashSize: d.dashLength || 1,
-                      gapSize: d.dashGap || 0.1,
-                      depthWrite: false,
-                   });
-                } else {
-                   material = new THREE.LineBasicMaterial({
-                      color: d.color || '#ffffff',
-                      opacity: d.opacity ?? 1.0,
-                      transparent: true,
-                      depthWrite: false,
-                   });
-                }
-                const wireframe = new THREE.LineSegments(edges, material);
-                if ((d.dashLength || 0) > 0) wireframe.computeLineDistances();
-                group.add(wireframe);
-             }
+               if (d.showWireframe) {
+                  const geo = new THREE.SphereGeometry(radius, res, res / 2);
+                  const edges = new THREE.EdgesGeometry(geo);
+                  
+                  let material;
+                  if ((d.dashLength || 0) > 0) {
+                     material = new THREE.LineDashedMaterial({
+                        color: d.color || '#ffffff',
+                        opacity: d.opacity ?? 1.0,
+                        transparent: true,
+                        dashSize: d.dashLength || 1,
+                        gapSize: d.dashGap || 0.1,
+                        depthWrite: false,
+                     });
+                  } else {
+                     material = new THREE.LineBasicMaterial({
+                        color: d.color || '#ffffff',
+                        opacity: d.opacity ?? 1.0,
+                        transparent: true,
+                        depthWrite: false,
+                     });
+                  }
+                  const wireframe = new THREE.LineSegments(edges, material);
+                  if ((d.dashLength || 0) > 0) wireframe.computeLineDistances();
+                  group.add(wireframe);
+               }
 
-             if (d.showPoints) {
-                const geo = new THREE.SphereGeometry(radius, res, res / 2);
-                const mat = new THREE.PointsMaterial({
-                   color: d.pointColor || d.color || '#ffffff',
-                   size: d.pointSize || 0.1,
-                   transparent: true,
-                   opacity: d.opacity ?? 1.0,
-                   depthWrite: false,
-                });
-                const points = new THREE.Points(geo, mat);
-                group.add(points);
-             }
-             return group;
-          }
+               if (d.showPoints) {
+                  const geo = new THREE.SphereGeometry(radius, res, res / 2);
+                  const mat = new THREE.PointsMaterial({
+                     color: d.pointColor || d.color || '#ffffff',
+                     size: d.pointSize || 0.1,
+                     transparent: true,
+                     opacity: d.opacity ?? 1.0,
+                     depthWrite: false,
+                  });
+                  const points = new THREE.Points(geo, mat);
+                  group.add(points);
+               }
+               return group;
+            }
 
-          if (d.isWireframe) {
-            return new THREE.Mesh(
-                new THREE.SphereGeometry(100.2, 48, 24),
-                new THREE.MeshBasicMaterial({ 
-                    color: d.color || '#ffffff', 
-                    wireframe: true, 
-                    transparent: true, 
-                    opacity: d.opacity ?? 0.1,
-                    depthWrite: false 
-                })
-            );
-          }
+            if (d.isWireframe) {
+              return new THREE.Mesh(
+                  new THREE.SphereGeometry(100.2, 48, 24),
+                  new THREE.MeshBasicMaterial({ 
+                      color: d.color || '#ffffff', 
+                      wireframe: true, 
+                      transparent: true, 
+                      opacity: d.opacity ?? 0.1,
+                      depthWrite: false 
+                  })
+              );
+            }
 
-          return new THREE.Mesh(getCachedGeometry(d.sides, d.size, d.gridHeight, d.isDot), getCachedMaterial(d));
-        }}
-        customThreeObjectUpdate={(obj, d: any) => {
-          if (!globeRef.current || !d) return;
-          if (d.isWireframe || d.isGridLabLayer) {
-              obj.position.set(0,0,0);
-              return;
-          }
-          const coords = globeRef.current.getCoords(d.lat, d.lng, d.altitude);
-          if (!coords) return;
-          const pos = new THREE.Vector3(coords.x, coords.y, coords.z);
-          if (d.rotation) pos.applyEuler(d.rotation);
-          obj.position.copy(pos); 
-          obj.lookAt(0, 0, 0); 
-          obj.rotateX(-Math.PI / 2); 
-        }}
-        arcsData={arcs}
-        arcColor={(d: any) => d.color || '#ffffff'}
-        arcAltitude={(d: any) => d.altitude || 0.1}
-        arcDashLength={() => (3.0 / (state.arcSegments || 20)) * (1 - (state.arcGap || 0.4))}
-        arcDashGap={() => (3.0 / (state.arcSegments || 20)) * (state.arcGap || 0.4)}
-        arcDashAnimateTime={state.arcAnimateTime || 5000}
-        arcStroke={state.arcThickness || 0.5}
-        rendererConfig={{ antialias: true, alpha: false, stencil: false }}
-        autoRotate={state.autoRotate}
-        autoRotateSpeed={0.5}
+            return new THREE.Mesh(getCachedGeometry(d.sides, d.size, d.gridHeight, d.isDot), getCachedMaterial(d));
+          }}
+          customThreeObjectUpdate={(obj, d: any) => {
+            if (!globeRef.current || !d) return;
+            if (d.isWireframe || d.isGridLabLayer) {
+                obj.position.set(0,0,0);
+                return;
+            }
+            const coords = globeRef.current.getCoords(d.lat, d.lng, d.altitude);
+            if (!coords) return;
+            const pos = new THREE.Vector3(coords.x, coords.y, coords.z);
+            if (d.rotation) pos.applyEuler(d.rotation);
+            obj.position.copy(pos); 
+            obj.lookAt(0, 0, 0); 
+            obj.rotateX(-Math.PI / 2); 
+          }}
+          arcsData={arcs}
+          arcColor={(d: any) => d.color || '#ffffff'}
+          arcAltitude={(d: any) => d.altitude || 0.1}
+          arcDashLength={() => (3.0 / (state.arcSegments || 20)) * (1 - (state.arcGap || 0.4))}
+          arcDashGap={() => (3.0 / (state.arcSegments || 20)) * (state.arcGap || 0.4)}
+          arcDashAnimateTime={state.arcAnimateTime || 5000}
+          arcStroke={state.arcThickness || 0.5}
+          rendererConfig={{ 
+              antialias: true, 
+              alpha: false, 
+              stencil: false,
+              preserveDrawingBuffer: true 
+          }}
+          autoRotate={state.autoRotate}
+          autoRotateSpeed={0.5}
+        />
+      </div>
+
+      <div 
+        className="absolute inset-0 pointer-events-none z-[100]" 
+        style={dofMaskStyles as any} 
       />
+
+      {state.postProcessing?.enabled && (
+        <>
+          {state.postProcessing.chromaticEnabled && state.postProcessing.chromatic > 10 && (
+            <div 
+              className="absolute inset-0 pointer-events-none mix-blend-overlay z-[150]" 
+              style={{ 
+                background: `repeating-linear-gradient(0deg, rgba(0,0,0,0.1) 0px, rgba(0,0,0,0.1) 1px, transparent 2px, transparent 4px)`,
+                opacity: (state.postProcessing.chromatic / 100) * 0.3
+              }} 
+            />
+          )}
+
+          {state.postProcessing.mosaicEnabled && state.postProcessing.mosaic > 0 && (
+            <div 
+              className="absolute inset-0 pointer-events-none" 
+              style={{ 
+                backdropFilter: `url(#pixelate)`,
+                opacity: (state.postProcessing.mosaic / 100) * ((state.postProcessing.opacity ?? 100) / 100)
+              }} 
+            />
+          )}
+
+          {state.postProcessing.vignetteEnabled && (
+            <div 
+              className="absolute inset-0 pointer-events-none" 
+              style={{ 
+                background: `radial-gradient(circle, transparent ${vOffset}%, rgba(0,0,0,${vDarkness}) 100%)`,
+                opacity: vIntensity
+              }} 
+            />
+          )}
+
+          {state.postProcessing.noiseEnabled && (
+            <div 
+              className="absolute inset-0 pointer-events-none z-[200]" 
+              style={{ 
+                backdropFilter: `url(#noise-filter)`,
+                opacity: 1 
+              }} 
+            />
+          )}
+        </>
+      )}
+
       {isLoading && (
          <div className="absolute inset-0 z-50 flex items-center justify-center bg-black">
              <div className="flex flex-col items-center gap-4">

@@ -1,14 +1,14 @@
+
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>GEO-TERMINAL | Planetary Grid</title>
+  <title>地球控1.1 | Planetary Grid</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <link
-    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap"
-    rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet" crossorigin="anonymous">
   <style>
     body {
       margin: 0;
@@ -17,15 +17,12 @@
       color: #ffffff;
       font-family: 'Inter', 'Noto Sans SC', sans-serif;
       overflow: hidden;
-      text-transform: uppercase;
     }
-
     input[type="range"] {
       -webkit-appearance: none;
       background: #333;
       height: 1px;
     }
-
     input[type="range"]::-webkit-slider-thumb {
       -webkit-appearance: none;
       height: 12px;
@@ -34,31 +31,24 @@
       border-radius: 50%;
       cursor: pointer;
     }
-
     .terminal-scrollbar::-webkit-scrollbar {
       width: 2px;
     }
-
     .terminal-scrollbar::-webkit-scrollbar-track {
       background: transparent;
     }
-
     .terminal-scrollbar::-webkit-scrollbar-thumb {
       background: #333;
     }
-
-    /* 修复下拉框选项在部分浏览器中白底白字的问题 */
+    
     select {
       background-color: #1a1a1a !important;
       color: #ffffff !important;
     }
-
     option {
       background-color: #1a1a1a !important;
       color: #ffffff !important;
     }
-
-    /* 移除 iOS 默认样式并添加自定义箭头 */
     select {
       -webkit-appearance: none;
       -moz-appearance: none;
@@ -70,12 +60,22 @@
       padding-right: 2rem !important;
     }
   </style>
-
+<script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@^19.2.3",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "lucide-react": "https://esm.sh/lucide-react@^0.562.0",
+    "react-globe.gl": "https://esm.sh/react-globe.gl@^2.37.0",
+    "html-to-image": "https://esm.sh/html-to-image@1.11.11"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
 </head>
-
 <body>
   <div id="root"></div>
-  <script type="module" src="./index.tsx"></script>
+<script type="module" src="/index.tsx"></script>
 </body>
-
 </html>
